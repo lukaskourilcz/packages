@@ -1,0 +1,61 @@
+/**
+ * The fixed vocabularies of a NEEDED.md task line: its work kind and its time
+ * estimate, with the pure helpers that parse and format them.
+ */
+
+/** The five work kinds a task can carry in a `[kind:…]` marker. */
+export const TASK_KINDS = [
+  "setup",
+  "deploy",
+  "legal",
+  "content",
+  "decision",
+] as const;
+
+export type TaskKind = (typeof TASK_KINDS)[number];
+
+export function isTaskKind(value: unknown): value is TaskKind {
+  return (
+    typeof value === "string" && (TASK_KINDS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Time filter buckets — cumulative ceilings ("tasks that fit in ≤ X"). A
+ * selection keeps tasks whose estimate is at most the bucket's ceiling; "all"
+ * clears the filter (and is the only view that includes longer tasks). `id` is
+ * stable for state/URLs.
+ */
+export const TIME_BUCKETS = [
+  { id: "q", maxMinutes: 15 },
+  { id: "h", maxMinutes: 60 },
+  { id: "half", maxMinutes: 240 },
+] as const;
+
+export type TimeBucketId = (typeof TIME_BUCKETS)[number]["id"];
+
+/** Compact human duration: 45 → "45m", 120 → "2h", 90 → "1h 30m". */
+export function formatMinutes(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
+
+/**
+ * Parse a `[time:…]` marker value into whole minutes. Accepts "30m", "2h",
+ * "1h30m", "1h 30m", or a bare number (minutes). Returns null if unparseable.
+ */
+export function parseTimeToMinutes(raw: string): number | null {
+  const value = raw.trim().toLowerCase();
+  if (!value) return null;
+  if (/^\d+$/.test(value)) {
+    const n = Number(value);
+    return n > 0 ? n : null;
+  }
+  const match = value.match(/^(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?$/);
+  if (!match || (!match[1] && !match[2])) return null;
+  const total = (Number(match[1] ?? 0) * 60) + Number(match[2] ?? 0);
+  return total > 0 ? total : null;
+}
