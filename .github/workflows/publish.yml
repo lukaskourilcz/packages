@@ -1,0 +1,39 @@
+# Publishes one package to GitHub Packages when its tag is pushed:
+#   git tag czech-payments-v0.1.0 && git push origin czech-payments-v0.1.0
+name: Publish
+on:
+  push:
+    tags: ['*-v[0-9]*']
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: '@lukaskourilcz'
+      - run: npm ci --no-audit --no-fund
+      - name: Resolve the package from the tag
+        id: pkg
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          dir="packages/${tag%-v*}"
+          version="${tag##*-v}"
+          test -f "$dir/package.json" || { echo "no package at $dir"; exit 1; }
+          actual=$(node -p "require('./$dir/package.json').version")
+          test "$actual" = "$version" || { echo "tag $tag does not match $dir version $actual"; exit 1; }
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+      - run: npm run typecheck && npm test
+      - run: npm run build --workspace ${{ steps.pkg.outputs.dir }}
+      - run: npm publish --workspace ${{ steps.pkg.outputs.dir }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
