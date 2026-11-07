@@ -1,0 +1,49 @@
+{
+  "name": "@lukaskourilcz/czech-bank-csv",
+  "version": "0.1.0",
+  "description": "Parse bank statement CSV exports from Czech banks: sniffed delimiter, accent-insensitive headers, Czech numbers and dates, variable symbols, stable row ids.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "czech",
+    "bank",
+    "csv",
+    "statement",
+    "parser",
+    "transactions",
+    "variabilni-symbol",
+    "raiffeisenbank",
+    "fio"
+  ],
+  "author": "Lukáš Kouřil",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukaskourilcz/packages.git",
+    "directory": "packages/czech-bank-csv"
+  },
+  "homepage": "https://github.com/lukaskourilcz/packages/tree/main/packages/czech-bank-csv#readme",
+  "bugs": "https://github.com/lukaskourilcz/packages/issues",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
