@@ -1,0 +1,19 @@
+{
+  "name": "lukaskourilcz-packages",
+  "private": true,
+  "description": "Small, dependency-free TypeScript packages extracted from production apps: Czech payments and invoices, bank CSV, tax registries, and repository markdown contracts.",
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.6"
+  }
+}
