@@ -1,0 +1,52 @@
+{
+  "name": "@lukaskourilcz/repo-contract",
+  "version": "0.1.0",
+  "description": "Parse and lint a repository markdown contract: NEEDED.md action items with importance, owner, time and kind markers, and the tech stack in about-project.md. Library and CLI.",
+  "type": "module",
+  "bin": {
+    "repo-contract": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "markdown",
+    "needed-md",
+    "todo",
+    "project-management",
+    "tech-stack",
+    "lint",
+    "cli",
+    "ai-agents",
+    "repository"
+  ],
+  "author": "Lukáš Kouřil",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukaskourilcz/packages.git",
+    "directory": "packages/repo-contract"
+  },
+  "homepage": "https://github.com/lukaskourilcz/packages/tree/main/packages/repo-contract#readme",
+  "bugs": "https://github.com/lukaskourilcz/packages/issues",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
