@@ -1,0 +1,27 @@
+name: Feature request
+description: A bank layout, a registry field or a helper you are missing.
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - czech-payments
+        - czech-bank-csv
+        - czech-tax-registry
+        - repo-contract
+        - A new package
+    validations:
+      required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need, and what for?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example
+      description: A sample input and the result you would expect. Anonymise real data.

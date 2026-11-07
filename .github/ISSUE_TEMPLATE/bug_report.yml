@@ -1,0 +1,41 @@
+name: Bug report
+description: Something returns the wrong result or throws.
+labels: [bug]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - czech-payments
+        - czech-bank-csv
+        - czech-tax-registry
+        - repo-contract
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input
+      description: The smallest input that shows the problem. Remove real account numbers, names and amounts.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      placeholder: Node 22.11, Chrome 131, Bun 1.2 …
