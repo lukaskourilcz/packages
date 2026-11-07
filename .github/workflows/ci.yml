@@ -27,5 +27,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      - name: Lint this repository with its own contract
+        run: node packages/repo-contract/dist/cli.js lint .
       - name: Pack every package
         run: npm pack --workspaces --dry-run
