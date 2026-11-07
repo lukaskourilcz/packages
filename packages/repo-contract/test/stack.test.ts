@@ -1,0 +1,249 @@
+import { describe, expect, it } from "vitest";
+import {
+  mergeDetectedTools,
+  parseAboutProjectStack,
+  parsePackageJsonStack,
+  partitionDetectedTools,
+  toolKey,
+  type StackEntry,
+  readRepoStack,
+} from "../src/index.js";
+
+const names = (entries: StackEntry[]) => entries.map((entry) => entry.name);
+
+describe("parseAboutProjectStack", () => {
+  it("reads both contract sections and splits compound bullets", () => {
+    const { hasSections, entries, labels } = parseAboutProjectStack(`# Demo
+
+Summary paragraph that mentions React and should be ignored.
+
+## Tech stack
+
+- **Next.js 16 (App Router) and TypeScript** — the shell and API routes
+- **Tailwind CSS 4, Radix primitives, Recharts** — UI and charts
+
+## Third-party libraries
+
+- **Supabase** — Postgres, auth and row-level security
+- **ARES and VIES** — public registries
+- \`react-syntax-highlighter\`, \`devicon\` — code visuals
+- Plain Name – with an en dash
+
+## Deployment
+
+- **Ignored** — not a stack section
+`);
+    expect(hasSections).toBe(true);
+    expect(labels).toBe(0);
+    expect(names(entries)).toEqual([
+      "Next.js",
+      "TypeScript",
+      "Tailwind CSS",
+      "Radix primitives",
+      "Recharts",
+      "Supabase",
+      "ARES",
+      "VIES",
+      "react-syntax-highlighter",
+      "devicon",
+      "Plain Name",
+    ]);
+    const supabase = entries.find((entry) => entry.name === "Supabase")!;
+    expect(supabase.whatItDoes).toBe("Postgres, auth and row-level security");
+    expect(supabase.specificity).toBe(1);
+    expect(entries.find((entry) => entry.name === "Recharts")!.specificity).toBe(3);
+  });
+
+  it("splits Czech lists on 'a', keeps parenthesised lists whole and joins continuation lines", () => {
+    const { entries } = parseAboutProjectStack(`## Tech stack
+
+- **TypeScript, Node.js 22 a pnpm** — jeden workspace se třemi balíčky: \`orchestrator\`, \`site\`
+  a \`studio\`
+- **\`state/\` v Gitu** — záznamy porad; databázi projekt nemá
+
+## Third-party libraries
+
+- **Buffer a Meta Graph API (Instagram, Threads)** — publikování na sociální sítě
+`);
+    expect(names(entries)).toEqual(["TypeScript", "Node.js", "pnpm", "Buffer", "Meta Graph API"]);
+    expect(entries[0]!.whatItDoes).toBe("jeden workspace se třemi balíčky: orchestrator, site a studio");
+  });
+
+  it("skips label bullets, which name a layer rather than a tool", () => {
+    const { hasSections, entries, labels } = parseAboutProjectStack(`## Tech stack
+
+- **Reader:** Next.js App Router, React and strict TypeScript.
+- **Client:** React + Vite + TypeScript, React Router, TanStack Query
+- **Stripe** — optional support
+`);
+    expect(hasSections).toBe(true);
+    expect(labels).toBe(2);
+    expect(names(entries)).toEqual(["Stripe"]);
+  });
+
+  it("accepts a colon after a bold name and names that run up to the dash", () => {
+    const { entries } = parseAboutProjectStack(`### Third party libraries
+
+- **Resend**: optional email
+- **Sentry** and **PostHog** — monitoring and analytics
+* Upstash Redis
+1. Vercel - hosting
+`);
+    expect(entries.map((entry) => [entry.name, entry.whatItDoes])).toEqual([
+      ["Resend", "optional email"],
+      ["Sentry", "monitoring and analytics"],
+      ["PostHog", "monitoring and analytics"],
+      ["Upstash Redis", ""],
+      ["Vercel", "hosting"],
+    ]);
+  });
+
+  it("ignores fenced code, other headings, prose and sentence-length names", () => {
+    const { hasSections, entries } = parseAboutProjectStack(`## Tech stack
+
+\`\`\`
+- **Fenced** — not a bullet
+\`\`\`
+
+A paragraph between bullets.
+
+- This bullet is a whole sentence without any separator in it at all
+- * *
+
+### Frontend
+
+- **Nested** — still inside Tech stack
+
+## Something else
+
+- **Outside** — after the section
+`);
+    expect(hasSections).toBe(true);
+    expect(names(entries)).toEqual(["Nested"]);
+  });
+
+  it("reports a file without either section", () => {
+    expect(parseAboutProjectStack("# Only a title\n\n- **React** — UI\n")).toEqual({
+      hasSections: false,
+      entries: [],
+      labels: 0,
+    });
+  });
+});
+
+describe("parsePackageJsonStack", () => {
+  it("lists direct runtime dependencies only, sorted", () => {
+    const entries = parsePackageJsonStack(JSON.stringify({
+      dependencies: { react: "19", next: "16", "@supabase/supabase-js": "2" },
+      devDependencies: { vitest: "4" },
+    }));
+    expect(names(entries!)).toEqual(["@supabase/supabase-js", "next", "react"]);
+    expect(entries!.every((entry) => entry.whatItDoes === "")).toBe(true);
+  });
+
+  it("returns null for invalid JSON and nothing for a file without dependencies", () => {
+    expect(parsePackageJsonStack("{ not json")).toBeNull();
+    expect(parsePackageJsonStack("[]")).toBeNull();
+    expect(parsePackageJsonStack(JSON.stringify({ name: "x" }))).toEqual([]);
+  });
+});
+
+describe("mergeDetectedTools", () => {
+  const entry = (name: string, whatItDoes = "", specificity = 1): StackEntry => ({ name, key: toolKey(name), whatItDoes, specificity });
+
+  it("merges case-insensitively across projects and keeps each project's note", () => {
+    const tools = mergeDetectedTools([
+      {
+        project: { id: "p1", name: "web-app" },
+        source: "about-project",
+        entries: [
+          entry("Supabase", "Postgres and Auth", 2),
+          entry("Supabase", "Postgres database, authentication and RLS", 1),
+          entry("recharts", "charts", 4),
+        ],
+      },
+      {
+        project: { id: "p2", name: "devShark" },
+        source: "about-project",
+        entries: [entry("supabase", "Scores and grading"), entry("Recharts", "", 1)],
+      },
+      { project: { id: "p3", name: "news-app" }, source: "package-json", entries: [entry("next")] },
+    ]);
+    expect(tools.map((tool) => tool.name)).toEqual(["next", "Recharts", "Supabase"]);
+    const supabase = tools.find((tool) => tool.key === "supabase")!;
+    expect(supabase.projects).toEqual([
+      { id: "p1", name: "web-app", note: "Postgres database, authentication and RLS", source: "about-project" },
+      { id: "p2", name: "devShark", note: "Scores and grading", source: "about-project" },
+    ]);
+    expect(supabase.whatItDoes).toBe("Postgres database, authentication and RLS");
+    expect(tools.find((tool) => tool.key === "recharts")!.whatItDoes).toBe("charts");
+    expect(tools.find((tool) => tool.key === "next")!.projects[0]!.source).toBe("package-json");
+  });
+
+  it("folds accents and spacing into the same key", () => {
+    expect(toolKey("  Fio   Banka ")).toBe(toolKey("fio banka"));
+    expect(toolKey("Čeština")).toBe("cestina");
+  });
+
+  it("merges an npm package with the product it ships", () => {
+    expect(toolKey("Next.js")).toBe(toolKey("next"));
+    expect(toolKey("React DOM")).toBe(toolKey("react-dom"));
+    expect(toolKey("date_fns")).toBe(toolKey("date-fns"));
+    // Only a trailing ".js" goes; a scoped package keeps its scope.
+    expect(toolKey("pdfjs-dist")).toBe("pdfjs dist");
+    expect(toolKey("@supabase/supabase-js")).toBe("@supabase/supabase js");
+    const tools = mergeDetectedTools([
+      { project: { id: "p3", name: "news-app" }, source: "package-json", entries: [entry("next")] },
+      { project: { id: "p1", name: "web-app" }, source: "about-project", entries: [entry("Next.js", "The app shell")] },
+    ]);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]).toMatchObject({ key: "next", name: "Next.js", whatItDoes: "The app shell" });
+    expect(tools[0]!.projects.map((usage) => [usage.name, usage.source])).toEqual([
+      ["news-app", "package-json"],
+      ["web-app", "about-project"],
+    ]);
+  });
+});
+
+describe("partitionDetectedTools", () => {
+  it("never duplicates a tool the owner added by hand", () => {
+    const detected = mergeDetectedTools([
+      {
+        project: { id: "p1", name: "web-app" },
+        source: "about-project",
+        entries: [
+          { name: "Vercel", key: "vercel", whatItDoes: "Hosting", specificity: 1 },
+          { name: "Sentry", key: "sentry", whatItDoes: "Errors", specificity: 1 },
+        ],
+      },
+    ]);
+    const manual = [{ id: "t1", name: null, linkTitle: "vercel" }];
+    const { unmatched, matches } = partitionDetectedTools(detected, manual, (tool) => [tool.name, tool.linkTitle]);
+    expect(unmatched.map((tool) => tool.name)).toEqual(["Sentry"]);
+    expect(matches.get(manual[0]!)?.name).toBe("Vercel");
+    // An own name that differs from the library title still matches by either.
+    const renamed = [{ id: "t2", name: "Sentry", linkTitle: "Sentry — Application monitoring" }];
+    expect(partitionDetectedTools(detected, renamed, (tool) => [tool.name, tool.linkTitle]).unmatched.map((tool) => tool.name)).toEqual(["Vercel"]);
+  });
+});
+
+describe("readRepoStack", () => {
+  const about = "# Demo\n\n## Tech stack\n\n- **Next.js** — the app shell\n";
+  const pkg = JSON.stringify({ dependencies: { react: "^19.0.0" }, devDependencies: { vitest: "^4.0.0" } });
+
+  it("prefers the about-project.md sections", () => {
+    const stack = readRepoStack({ aboutProject: about, packageJson: pkg });
+    expect(stack.source).toBe("about-project");
+    expect(names(stack.entries)).toEqual(["Next.js"]);
+  });
+
+  it("falls back to runtime dependencies when the sections list nothing", () => {
+    const stack = readRepoStack({ aboutProject: "# Demo\n\nNo stack here.\n", packageJson: pkg });
+    expect(stack.source).toBe("package-json");
+    expect(names(stack.entries)).toEqual(["react"]);
+  });
+
+  it("returns no source when neither file helps", () => {
+    expect(readRepoStack({})).toEqual({ source: null, entries: [] });
+  });
+});
