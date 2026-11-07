@@ -7,6 +7,11 @@ updates:
     groups:
       dev-tools:
         patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      # Packages support Node >= 20, so the types stay on Node 20.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
